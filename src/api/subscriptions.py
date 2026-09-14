@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Path
 from pydantic import BaseModel, Field, validator
 from typing import Optional, Literal
 from uuid import uuid4, UUID
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI()
 
@@ -57,4 +57,33 @@ def create_coupon(payload: CouponCreateRequest):
     }
     _coupons_by_id[coupon_id] = coupon
     _coupons_by_code[payload.code] = coupon
+    return CouponResponse(**coupon)
+
+@app.patch("/api/v1/coupons/{coupon_id}/expiration", response_model=CouponResponse)
+def set_coupon_expiration(
+    coupon_id: UUID = Path(..., description="The UUID of the coupon to update"),
+    payload: CouponCreateRequest = None,
+    expires_at: Optional[datetime] = None
+):
+    """Update the expiration date of an existing coupon.
+
+    The request body must contain an ``expires_at`` field. If the supplied date
+    is in the past relative to the current UTC time, the request is rejected.
+    """
+    # Retrieve existing coupon
+    coupon = _coupons_by_id.get(coupon_id)
+    if not coupon:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coupon not found")
+
+    # If expires_at not provided via query/body, raise error
+    if expires_at is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at is required")
+
+    now = datetime.utcnow()
+    if expires_at < now:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid date")
+
+    # Update coupon
+    coupon["expires_at"] = expires_at
+    coupon["updated_at"] = now
     return CouponResponse(**coupon)
