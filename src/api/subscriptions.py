@@ -1,16 +1,11 @@
-from flask import Flask, Blueprint
+from flask import Blueprint, jsonify
 
-app = Flask(__name__)
+# Blueprint for subscription related routes
+subscriptions_bp = Blueprint('subscriptions', __name__)
 
-# Health check blueprint
-health_bp = Blueprint('health', __name__)
-
-@health_bp.route('/health')
-def health():
-    return {'status': 'ok'}
-
-app.register_blueprint(health_bp)
-
-# Import and register coupons blueprint
-from .coupons import coupons_bp
-app.register_blueprint(coupons_bp)
+@subscriptions_bp.route('/subscriptions', methods=['GET'])
+def list_subscriptions():
+    """Return a simple placeholder list of subscriptions.
+    In a real system this would query a database or another service.
+    """
+    return jsonify({"message": "list"}), 200
