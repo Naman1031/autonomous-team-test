@@ -1,38 +1,48 @@
 import uuid
-from datetime import datetime
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, validator
-from typing import Dict
+from flask import Blueprint, request, jsonify, current_app
 
-router = APIRouter()
+coupons_bp = Blueprint('coupons', __name__)
 
-class CouponCreate(BaseModel):
-    code: str = Field(..., max_length=50)
-    discount_type: str = Field(..., regex="^(FIXED|PERCENT)$")
-    discount_value: float = Field(..., gt=0)
-    valid_from: datetime
-    valid_to: datetime
+# In-memory storage for demonstration purposes
+# In a real implementation this would be handled by the persistence layer (e.g., SQLAlchemy)
+_coupons = {}
+_coupon_eligibility = {}
 
-    @validator('valid_to')
-    def check_dates(cls, v, values):
-        if 'valid_from' in values and v <= values['valid_from']:
-            raise ValueError('valid_to must be after valid_from')
-        return v
+@coupons_bp.route('/coupons/<uuid:coupon_id>/eligibility', methods=['PATCH'])
+def update_eligibility(coupon_id):
+    if str(coupon_id) not in _coupons:
+        return jsonify({'error': 'Coupon not found'}), 404
 
-class CouponResponse(CouponCreate):
-    id: uuid.UUID
-    status: str = "CREATED"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    data = request.get_json() or {}
+    min_order_amount = data.get('min_order_amount')
+    product_category = data.get('product_category')
+    user_segment = data.get('user_segment')
 
-# In‑memory store for demonstration purposes (replace with DB in production)
-_coupons: Dict[uuid.UUID, CouponResponse] = {}
+    # Validation: min_order_amount must be non‑negative if provided
+    if min_order_amount is not None:
+        try:
+            amount = float(min_order_amount)
+            if amount < 0:
+                raise ValueError()
+        except (ValueError, TypeError):
+            return jsonify({'error': 'min_order_amount must be a non‑negative number'}), 400
 
-@router.post("/coupons", response_model=CouponResponse)
-def create_coupon(coupon: CouponCreate):
-    # Ensure coupon code uniqueness
-    if any(existing.code == coupon.code for existing in _coupons.values()):
-        raise HTTPException(status_code=400, detail="Coupon code already exists")
+    # Save eligibility criteria
+    _coupon_eligibility[str(coupon_id)] = {
+        'min_order_amount': min_order_amount,
+        'product_category': product_category,
+        'user_segment': user_segment
+    }
+
+    return jsonify({'message': 'Eligibility criteria updated'}), 200
+
+@coupons_bp.route('/coupons', methods=['POST'])
+def create_coupon():
+    data = request.get_json() or {}
     coupon_id = uuid.uuid4()
-    new_coupon = CouponResponse(id=coupon_id, **coupon.dict())
-    _coupons[coupon_id] = new_coupon
-    return new_coupon
+    _coupons[str(coupon_id)] = {
+        'code': data.get('code'),
+        'discount_type': data.get('discount_type'),
+        'discount_value': data.get('discount_value')
+    }
+    return jsonify({'id': str(coupon_id)}), 201

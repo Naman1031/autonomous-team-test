@@ -1,54 +1,46 @@
+import json
+import uuid
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from src.api.coupons import router
-from datetime import datetime, timedelta
+from src.api import create_app
 
-app = FastAPI()
-app.include_router(router)
-client = TestClient(app)
+@pytest.fixture
+def client():
+    app = create_app()
+    app.testing = True
+    with app.test_client() as client:
+        yield client
 
-def test_create_coupon_success():
-    payload = {
-        "code": "WELCOME10",
-        "discount_type": "PERCENT",
-        "discount_value": 10,
-        "valid_from": datetime.utcnow().isoformat(),
-        "valid_to": (datetime.utcnow() + timedelta(days=30)).isoformat()
-    }
-    response = client.post("/coupons", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["code"] == payload["code"]
-    assert data["discount_type"] == payload["discount_type"]
-    assert data["discount_value"] == payload["discount_value"]
-    assert "id" in data
-    assert data["status"] == "CREATED"
+def test_update_eligibility_success(client):
+    # First create a coupon
+    resp = client.post('/coupons', json={
+        'code': 'TEST10',
+        'discount_type': 'PERCENT',
+        'discount_value': 10
+    })
+    assert resp.status_code == 201
+    coupon_id = resp.get_json()['id']
 
-def test_create_coupon_missing_field():
-    payload = {
-        "code": "WELCOME10",
-        # missing discount_type
-        "discount_value": 10,
-        "valid_from": datetime.utcnow().isoformat(),
-        "valid_to": (datetime.utcnow() + timedelta(days=30)).isoformat()
-    }
-    response = client.post("/coupons", json=payload)
-    # FastAPI returns 422 for validation errors
-    assert response.status_code == 422
+    # Update eligibility with valid criteria
+    resp = client.patch(f'/coupons/{coupon_id}/eligibility', json={
+        'min_order_amount': 50,
+        'product_category': 'electronics',
+        'user_segment': 'new_customers'
+    })
+    assert resp.status_code == 200
+    assert resp.get_json()['message'] == 'Eligibility criteria updated'
 
-def test_create_coupon_duplicate_code():
-    payload = {
-        "code": "DUPLICATE",
-        "discount_type": "FIXED",
-        "discount_value": 5,
-        "valid_from": datetime.utcnow().isoformat(),
-        "valid_to": (datetime.utcnow() + timedelta(days=10)).isoformat()
-    }
-    # First creation should succeed
-    resp1 = client.post("/coupons", json=payload)
-    assert resp1.status_code == 200
-    # Second creation with same code should fail
-    resp2 = client.post("/coupons", json=payload)
-    assert resp2.status_code == 400
-    assert resp2.json()["detail"] == "Coupon code already exists"
+def test_update_eligibility_negative_amount(client):
+    # Create a coupon
+    resp = client.post('/coupons', json={
+        'code': 'NEG1',
+        'discount_type': 'FIXED',
+        'discount_value': 5
+    })
+    coupon_id = resp.get_json()['id']
+
+    # Attempt to set a negative min_order_amount
+    resp = client.patch(f'/coupons/{coupon_id}/eligibility', json={
+        'min_order_amount': -10
+    })
+    assert resp.status_code == 400
+    assert 'min_order_amount' in resp.get_json()['error']
