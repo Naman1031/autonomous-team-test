@@ -1,8 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
 from src.api.subscriptions import app
+from uuid import uuid4
 
 client = TestClient(app)
+
+# ---------------------------------------------------------------------------
+# Coupon tests (existing)
+# ---------------------------------------------------------------------------
 
 def test_create_coupon_success():
     payload = {
@@ -35,3 +40,39 @@ def test_create_coupon_duplicate_code():
     resp2 = client.post("/api/v1/coupons", json=payload)
     assert resp2.status_code == 400
     assert resp2.json()["detail"] == "Coupon code already exists"
+
+# ---------------------------------------------------------------------------
+# Note tests (new for ASE-100)
+# ---------------------------------------------------------------------------
+
+def test_create_note_success():
+    user_id = str(uuid4())
+    payload = {"content": "My first note"}
+    response = client.post(
+        "/api/v1/notes",
+        json=payload,
+        headers={"X-User-Id": user_id}
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["content"] == payload["content"]
+    assert "id" in data
+    assert "createdAt" in data
+    assert "updatedAt" in data
+
+def test_create_note_missing_content():
+    user_id = str(uuid4())
+    payload = {}
+    response = client.post(
+        "/api/v1/notes",
+        json=payload,
+        headers={"X-User-Id": user_id}
+    )
+    # FastAPI/Pydantic returns 422 for validation errors
+    assert response.status_code == 422
+
+def test_create_note_missing_user_header():
+    payload = {"content": "Note without user"}
+    response = client.post("/api/v1/notes", json=payload)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Missing X-User-Id header"
