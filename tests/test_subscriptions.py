@@ -49,7 +49,7 @@ def test_create_note_success():
     user_id = str(uuid4())
     payload = {"content": "My first note"}
     response = client.post(
-        "/api/v1/notes",
+        "/notes",
         json=payload,
         headers={"X-User-Id": user_id}
     )
@@ -64,7 +64,7 @@ def test_create_note_missing_content():
     user_id = str(uuid4())
     payload = {}
     response = client.post(
-        "/api/v1/notes",
+        "/notes",
         json=payload,
         headers={"X-User-Id": user_id}
     )
@@ -73,6 +73,6 @@ def test_create_note_missing_content():
 
 def test_create_note_missing_user_header():
     payload = {"content": "Note without user"}
-    response = client.post("/api/v1/notes", json=payload)
+    response = client.post("/notes", json=payload)
     assert response.status_code == 400
     assert response.json()["detail"] == "Missing X-User-Id header"

@@ -76,7 +76,7 @@ class NoteResponse(BaseModel):
     createdAt: datetime
     updatedAt: datetime
 
-@app.post("/api/v1/notes", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/notes", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_note(request: Request, payload: NoteCreateRequest):
     # Simple user identification via header (in real world JWT would be used)
     user_id = request.headers.get("X-User-Id")
