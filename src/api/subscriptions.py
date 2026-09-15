@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, validator
 from typing import Optional, Literal
 from uuid import uuid4, UUID
 from datetime import datetime
+import datetime as dt
 
 app = FastAPI()
 
@@ -75,7 +76,7 @@ class NoteResponse(BaseModel):
     createdAt: datetime
     updatedAt: datetime
 
-@app.post("/notes", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/api/v1/notes", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_note(request: Request, payload: NoteCreateRequest):
     # Simple user identification via header (in real world JWT would be used)
     user_id = request.headers.get("X-User-Id")
@@ -84,7 +85,7 @@ async def create_note(request: Request, payload: NoteCreateRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing X-User-Id header"
         )
-    now = datetime.utcnow()
+    now = dt.datetime.utcnow()
     note_id = uuid4()
     note = {
         "id": note_id,
