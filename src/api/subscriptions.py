@@ -70,6 +70,12 @@ _notes_by_id = {}
 class NoteCreateRequest(BaseModel):
     content: str = Field(..., min_length=1)
 
+    @validator('content')
+    def not_blank(cls, v):
+        if not v.strip():
+            raise ValueError('content must not be empty')
+        return v
+
 class NoteResponse(BaseModel):
     id: UUID
     content: str

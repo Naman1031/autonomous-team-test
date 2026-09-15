@@ -76,3 +76,14 @@ def test_create_note_missing_user_header():
     response = client.post("/notes", json=payload)
     assert response.status_code == 400
     assert response.json()["detail"] == "Missing X-User-Id header"
+
+def test_create_note_empty_content():
+    user_id = str(uuid4())
+    payload = {"content": "   "}
+    response = client.post(
+        "/notes",
+        json=payload,
+        headers={"X-User-Id": user_id}
+    )
+    # Should be rejected as validation error
+    assert response.status_code == 422
