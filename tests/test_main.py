@@ -11,8 +11,17 @@ def test_shorten_valid_url():
     assert data["long_url"] == "https://example.com/long-path"
 
 def test_shorten_invalid_url():
-    response = client.post("/api/v1/shorten", json={"url": "invalid-url"})
-    assert response.status_code == 400
+    invalid_urls = [
+        "invalid-url",
+        "ftp://example.com",
+        "http://",
+        "",
+        "just_string"
+    ]
+    for invalid_url in invalid_urls:
+        response = client.post("/api/v1/shorten", json={"url": invalid_url})
+        assert response.status_code == 400
+        assert response.json() == {"detail": "Invalid URL format"}
 
 def test_redirect_existing_short_code():
     shorten_res = client.post("/api/v1/shorten", json={"url": "https://example.com/redirect-target"})
