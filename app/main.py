@@ -1,7 +1,7 @@
 import string
 import urllib.parse
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="URL Shortener API")
@@ -39,9 +39,9 @@ class ShortenResponse(BaseModel):
 @app.post("/api/v1/shorten", status_code=status.HTTP_201_CREATED, response_model=ShortenResponse)
 def shorten_url(payload: ShortenRequest):
     if not is_valid_url(payload.url):
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid URL format"
+            content={"error": "Invalid URL format"}
         )
     
     global db_id_counter
@@ -58,8 +58,8 @@ def shorten_url(payload: ShortenRequest):
 @app.get("/{short_code}", status_code=status.HTTP_302_FOUND)
 def redirect_short_code(short_code: str):
     if short_code not in db_urls:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Short code not found"
+            content={"error": "Short code not found"}
         )
     return RedirectResponse(url=db_urls[short_code], status_code=status.HTTP_302_FOUND)

@@ -21,7 +21,7 @@ def test_shorten_invalid_url():
     for invalid_url in invalid_urls:
         response = client.post("/api/v1/shorten", json={"url": invalid_url})
         assert response.status_code == 400
-        assert response.json() == {"detail": "Invalid URL format"}
+        assert response.json() == {"error": "Invalid URL format"}
 
 def test_redirect_existing_short_code():
     shorten_res = client.post("/api/v1/shorten", json={"url": "https://example.com/redirect-target"})
@@ -34,4 +34,4 @@ def test_redirect_existing_short_code():
 def test_redirect_nonexistent_short_code():
     response = client.get("/nonexistent123")
     assert response.status_code == 404
-    assert response.json() == {"detail": "Short code not found"}
+    assert response.json() == {"error": "Short code not found"}
